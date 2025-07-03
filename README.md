@@ -6,7 +6,7 @@ An AI-powered expense tracker agent built with n8n that automates daily logging,
 
 🚀 Overview
 
-This project automates personal expense tracking and reporting by combining no-code automation (n8n) and AI summarization (OpenAI / Gemini).  
+This project automates personal expense tracking and reporting by combining no-code automation (n8n) and AI summarization.  
 
 ✅ Daily: Logs your expenses into Google Sheets by parsing bank transaction messages or via manual entry.  
 ✅ Weekly: Every Sunday at 9 pm, sends a summary email of total expenditure and top 2 biggest expenses.  
@@ -17,7 +17,7 @@ This project automates personal expense tracking and reporting by combining no-c
 ✅ Daily Workflow
 - Trigger:  
   - Manually append transaction  
-  - Or parse SMS / WhatsApp messages received from banks (ignoring OTP/verification codes)
+  - Or parse SMS received from banks (ignoring OTP/verification codes)
 - Action: Extract transaction details (amount, date, merchant/category)
 - Log: Append to Google Sheets
 
@@ -49,3 +49,5 @@ This project automates personal expense tracking and reporting by combining no-c
 - Google Sheets API: Store transactions
 - Email (Gmail): Send reports
 - Mixtral model: Summaries and advice
+
+Privacy : No parsing of OTP or verification codes.
