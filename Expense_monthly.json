@@ -1,0 +1,199 @@
+{
+  "name": "Expense monthly",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "months",
+              "triggerAtDayOfMonth": 30,
+              "triggerAtHour": 21
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -520,
+        -20
+      ],
+      "id": "adb154f4-6aed-4e65-bcf8-7954f3ba75ec",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1bjwEwKl4obqcgnTmOPUT3TE9bRbnGhXQbLCiqGcl8_c",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -300,
+        -20
+      ],
+      "id": "1683c88c-e5cb-4fab-947e-c310f1f14014",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4Q93QOKcTGeT8d5a",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst currentMonth = now.getMonth();  // Jan=0\nconst currentYear = now.getFullYear();\n\nconst filteredItems = items.filter(item => {\n  const dateStr = item.json.Date || item.json.date;\n  if (!dateStr) return false;\n  const date = new Date(dateStr);\n  return date.getMonth() === currentMonth && date.getFullYear() === currentYear;\n});\n\n// Calculate total spend, top 2 merchants, largest transaction\nlet totalSpend = 0;\nconst merchantSpend = {};\n\nfilteredItems.forEach(item => {\n  const amount = item.json.Amount;\n  const merchant = item.json.Merchant;\n  totalSpend += amount;\n  merchantSpend[merchant] = (merchantSpend[merchant] || 0) + amount;\n});\n\nconst sortedMerchants = Object.entries(merchantSpend)\n  .sort((a,b) => b[1]-a[1])\n  .slice(0,2);\n\nconst largestTransaction = filteredItems.reduce((max, item) => \n  item.json.Amount > max ? item.json.Amount : max, 0);\n\nreturn [{\n  json: {\n    totalSpend,\n    topMerchants: sortedMerchants.map(([merchant, amount]) => ({ merchant, amount })),\n    largestTransaction\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -20
+      ],
+      "id": "69835434-4e08-4453-926c-6d4733c374b5",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "fromEmail": "chakolesanskruti@gmail.com",
+        "toEmail": "chakolesanskruti@gmail.com",
+        "subject": "📊 Monthly Expense Summary",
+        "emailFormat": "text",
+        "text": "={{ $json[\"choices\"][0][\"message\"][\"content\"] }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        360,
+        -20
+      ],
+      "id": "559d6a26-82d0-4fe0-998a-3faa7b179fb0",
+      "name": "Send email",
+      "webhookId": "c6219eca-9b27-460f-a7d1-962e5bf9fcc2",
+      "credentials": {
+        "smtp": {
+          "id": "69S1OFqTB8eR4qg2",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nousresearch/nous-hermes-2-mixtral-8x7b-dpo"
+            },
+            {
+              "name": "messages",
+              "value": "={{ [     {       \"role\": \"user\",       \"content\": \"Here is my monthly expense summary: \" + JSON.stringify($json) + \". Please write it into a short, clear summary of total spend, top 2 merchants by spend, largest single transaction in under 100 words, and add 2 personalized money saving tips based on the spending.\"     }   ] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        140,
+        -20
+      ],
+      "id": "41e05359-d8bd-45fe-a829-c553e69fb31c",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send email": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8a68b2fb-0029-4695-b6a5-fd763c1a4f27",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "26a2ebd6ed143e2e4821619e789ab6a657a19ed22fd9ee0fe5627e65747b9cfa"
+  },
+  "id": "ZyjnE8oVLSjWTRai",
+  "tags": []
+}
