@@ -1,0 +1,201 @@
+{
+  "name": "Expense weekly",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 20 * * 0"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -460,
+        0
+      ],
+      "id": "a116f06b-868f-4480-9cdd-19f89014a5b2",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1bjwEwKl4obqcgnTmOPUT3TE9bRbnGhXQbLCiqGcl8_c",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [
+        -240,
+        0
+      ],
+      "id": "632c6bf3-e821-439d-af64-5110d82e8c2e",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "4Q93QOKcTGeT8d5a",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst dayOfWeek = now.getDay(); // Sunday=0\nconst diffToSunday = dayOfWeek; \nconst startOfWeek = new Date(now);\nstartOfWeek.setDate(now.getDate() - diffToSunday);\nstartOfWeek.setHours(0, 0, 0, 0);\n\n// Filter items for the current week\nconst filteredItems = items.filter(item => {\n  const dateStr = item.json.Date || item.json.date;\n  if (!dateStr) return false;\n  const date = new Date(dateStr);\n  return date >= startOfWeek;\n});\n\n// Calculate total spend, top 2 merchants, and largest transaction\nlet totalSpend = 0;\nconst merchantSpend = {};\n\nfilteredItems.forEach(item => {\n  const amount = item.json.Amount;\n  const merchant = item.json.Merchant;\n\n  totalSpend += amount;\n\n  if (!merchantSpend[merchant]) {\n    merchantSpend[merchant] = 0;\n  }\n  merchantSpend[merchant] += amount;\n});\n\n// Sort merchants by spend\nconst sortedMerchants = Object.entries(merchantSpend)\n  .sort((a, b) => b[1] - a[1])\n  .slice(0, 2);\n\n// Prepare the largest transaction\nconst largestTransaction = filteredItems.reduce((max, item) => {\n  return item.json.Amount > max ? item.json.Amount : max;\n}, 0);\n\n// Create the output object\nconst output = {\n  totalSpend: totalSpend,\n  topMerchants: sortedMerchants.map(([merchant, amount]) => ({ merchant, amount })),\n  largestTransaction: largestTransaction\n};\n\n// Return the formatted data\nreturn [{ json: output }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        0
+      ],
+      "id": "b4e24d68-405e-4324-9a5a-bdaeca720da1",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://example.com"
+            },
+            {
+              "name": "X-Title",
+              "value": "n8n-expense-agent"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nousresearch/nous-hermes-2-mixtral-8x7b-dpo"
+            },
+            {
+              "name": "messages",
+              "value": "={{ [ { \"role\": \"user\", \"content\": \"Here is my weekly expense summary: \" + JSON.stringify($json) + \". Please write it into a short, clear summary of total spend, top 2 merchants by spend, and the largest single transaction in under 100 words.\" } ] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        0
+      ],
+      "id": "f528f94b-72dd-40ef-b7f2-7983421febab",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "fromEmail": "chakolesanskruti@gmail.com",
+        "toEmail": "chakolesanskruti@gmail.com",
+        "subject": "📊 Weekly Expense Summary",
+        "emailFormat": "text",
+        "text": "={{ $json[\"choices\"][0][\"message\"][\"content\"] }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        420,
+        0
+      ],
+      "id": "05a33f11-35cb-4024-9aaf-93f88805ffb4",
+      "name": "Send email",
+      "webhookId": "70c65be1-4172-4488-8647-fb7fd614f20f",
+      "credentials": {
+        "smtp": {
+          "id": "69S1OFqTB8eR4qg2",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "30dec068-ad0b-4e2e-acde-e6b84c08ab60",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "26a2ebd6ed143e2e4821619e789ab6a657a19ed22fd9ee0fe5627e65747b9cfa"
+  },
+  "id": "0BYe2PgeITvYyW6W",
+  "tags": []
+}
